@@ -1,0 +1,14 @@
+node_modules/
+release/
+logs/
+*.log
+
+# runtime local data (contains secrets/hosts)
+data/vps.json
+data/state.json
+data/tunnels.json
+data/commands.json
+
+# OS/editor
+.DS_Store
+Thumbs.db

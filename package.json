@@ -1,0 +1,68 @@
+{
+    "name":  "vps-ops-console-desktop",
+    "version":  "1.0.5",
+    "private":  true,
+    "description":  "VPS Ops Console desktop app",
+    "author":  "OpenAI Codex",
+    "main":  "electron-main.js",
+    "scripts":  {
+                    "start":  "node server.js",
+                    "desktop":  "electron .",
+                    "dev":  "concurrently \"node server.js\" \"electron .\"",
+                    "build:win":  "node node_modules/electron-builder/out/cli/cli.js --win nsis",
+                    "dist":  "node node_modules/electron-builder/out/cli/cli.js",
+                    "publish:github":  "node node_modules/electron-builder/out/cli/cli.js --publish always",
+                    "release:github":  "powershell -ExecutionPolicy Bypass -File ./scripts/release-github.ps1"
+                },
+    "build":  {
+                  "appId":  "com.vpsops.console",
+                  "productName":  "VPS Ops Console",
+                  "directories":  {
+                                      "output":  "release"
+                                  },
+                  "files":  [
+                                "electron-main.js",
+                                "server.js",
+                                "index.html",
+                                "update-config.json",
+                                "data/**/*",
+                                "logs/**/*",
+                                "node_modules/**/*",
+                                "package.json"
+                            ],
+                  "publish":  [
+                                  {
+                                      "provider":  "github",
+                                      "owner":  "trnghuey",
+                                      "repo":  "vps-ops-console",
+                                      "releaseType":  "release"
+                                  }
+                              ],
+                  "win":  {
+                              "target":  [
+                                             {
+                                                 "target":  "nsis",
+                                                 "arch":  [
+                                                              "x64"
+                                                          ]
+                                             }
+                                         ]
+                          },
+                  "nsis":  {
+                               "oneClick":  false,
+                               "allowToChangeInstallationDirectory":  true,
+                               "perMachine":  false,
+                               "createDesktopShortcut":  true,
+                               "createStartMenuShortcut":  true
+                           }
+              },
+    "devDependencies":  {
+                            "concurrently":  "^9.1.2",
+                            "electron":  "^36.3.2",
+                            "electron-builder":  "^24.13.3"
+                        },
+    "dependencies":  {
+                         "electron-updater":  "^6.6.2",
+                         "ssh2":  "^1.17.0"
+                     }
+}

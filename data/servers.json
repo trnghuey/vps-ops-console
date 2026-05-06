@@ -1,0 +1,20 @@
+[
+  {
+    "id": "sample-vite",
+    "name": "Frontend Vite",
+    "cwd": "C:/Users/ADMIN/Documents/Codex/2026-05-04/t-i-mu-n-l-m",
+    "command": "npm run dev",
+    "port": 5173,
+    "notes": "Ví dụ dev server frontend",
+    "shell": "powershell"
+  },
+  {
+    "id": "sample-api",
+    "name": "Node API",
+    "cwd": "C:/Users/ADMIN/Documents/Codex/2026-05-04/t-i-mu-n-l-m",
+    "command": "npm run start",
+    "port": 3000,
+    "notes": "Ví dụ API local",
+    "shell": "powershell"
+  }
+]

@@ -1,0 +1,150 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VPS Ops Console</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm/css/xterm.css" />
+  <style>
+    :root{
+      --primary:#0007cd;--primary-active:#0005a3;--primary-glow:#1a26ff;
+      --canvas:#0f0f0f;--canvas-deep:#000;--surface-card:#181818;--surface-elev:#222;
+      --hair:#222;--hair-strong:#333;
+      --ink:#fff;--body:#a8a8a8;--muted:#888;--success:#33d17a;--error:#ff4d4d;
+      --r-md:8px;--r-lg:12px;--r-xl:16px;
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{margin:0;background:var(--canvas);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui;overflow:hidden}
+    .spotlight{position:fixed;inset:-10% -20% auto -20%;height:46vh;background:radial-gradient(circle at 50% 45%,rgba(26,38,255,.42),rgba(26,38,255,.14) 28%,rgba(15,15,15,0) 66%);pointer-events:none;z-index:0}
+    .app{position:relative;z-index:1;display:grid;grid-template-columns:300px 1fr;grid-template-rows:1fr 300px;gap:12px;height:100%;padding:14px;max-width:1400px;margin:0 auto}
+    .pane{background:var(--surface-card);border:1px solid var(--hair);border-radius:var(--r-xl)}
+    .side{grid-row:1 / span 2;padding:14px;overflow:auto}
+    .main{padding:18px;overflow:auto}
+    .term{padding:10px;display:flex;flex-direction:column;background:var(--canvas-deep);border:1px solid var(--hair-strong);border-radius:var(--r-xl)}
+    .heading{font-size:44px;line-height:1.1;letter-spacing:-1.2px;font-weight:500;margin:0 0 10px}
+    .sub{color:var(--body);font-size:16px;line-height:1.5;margin:0 0 16px}
+    h3{margin:16px 0 10px;font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--muted);font-weight:600}
+    .row{display:flex;justify-content:space-between;align-items:center;gap:10px}.btns{display:flex;gap:8px;flex-wrap:wrap}
+    .item{padding:11px 12px;border:1px solid var(--hair);border-radius:var(--r-lg);background:var(--canvas);margin-bottom:8px;cursor:pointer}
+    .item.active{border-color:var(--primary);box-shadow:0 0 0 1px rgba(0,7,205,.2) inset}
+    .dot{width:8px;height:8px;border-radius:999px}.g{background:var(--success)}.r{background:var(--error)}
+    .btn{height:40px;padding:0 14px;border:1px solid var(--hair-strong);background:var(--surface-elev);color:var(--ink);border-radius:var(--r-md);font:500 14px/1 Inter,system-ui;cursor:pointer}
+    .btn:hover{border-color:#444}.btn.pri{background:var(--primary);border-color:var(--primary);color:#fff}.btn.pri:active{background:var(--primary-active)}.btn.warn{background:#3a2c00;border-color:#5a4300;color:#ffd974}.btn.danger{background:#3a1212;border-color:#6d1b1b}
+    input,textarea,select{width:100%;height:44px;background:var(--surface-card);border:1px solid var(--hair-strong);border-radius:var(--r-md);padding:0 14px;color:var(--ink);font:400 16px/1.5 Inter,system-ui}
+    textarea{height:120px;padding:12px 14px;resize:vertical}
+    label{display:block;margin:0 0 6px;color:var(--muted);font-size:13px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .badge{font-size:11px;letter-spacing:.7px;text-transform:uppercase;padding:4px 10px;border-radius:999px;border:1px solid var(--hair-strong);color:var(--body)}
+    .badge.ok{color:#bdf7d8;border-color:#1f6d46}.badge.warn{color:#ffe3a0;border-color:#705717}.badge.bad{color:#ffc0c0;border-color:#7b2b2b}
+    .term-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}.tab{height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--hair-strong);background:var(--surface-card);color:var(--body);cursor:pointer}.tab.active{border-color:var(--primary);color:#fff}
+    #terminal{flex:1;min-height:0;border:1px solid var(--hair);border-radius:var(--r-lg);overflow:hidden}
+    .history{margin-top:24px;padding-top:16px;border-top:1px solid var(--hair)}.history-list{display:grid;gap:8px;max-height:220px;overflow:auto}.history-item{padding:10px 12px;border:1px solid var(--hair);border-radius:var(--r-lg);background:var(--canvas)}.history-meta{font-size:12px;color:var(--muted)}
+    .health-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}.health-card{padding:12px;border:1px solid var(--hair);border-radius:var(--r-lg);background:var(--canvas)}.health-label{font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:var(--muted)}.health-value{font-size:16px;font-weight:600;line-height:1.35;margin-top:6px}.health-error{margin-top:10px;padding:12px;border:1px solid #6a2222;border-radius:var(--r-lg);background:#2a1212;color:#ffc7c7}
+    .modal,.palette{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:30}.modal.show,.palette.show{display:flex}.panel{width:min(720px,92vw);background:var(--surface-card);border:1px solid var(--hair-strong);border-radius:var(--r-xl);padding:16px}
+    .menu{position:fixed;display:none;background:var(--surface-elev);border:1px solid var(--hair-strong);border-radius:12px;padding:6px;z-index:40}.menu.show{display:block}.menu button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--ink);padding:8px 10px;border-radius:8px;cursor:pointer}.menu button:hover{background:#2a2a2a}
+    .palette-card{width:min(760px,92vw);background:var(--surface-card);border:1px solid var(--hair-strong);border-radius:var(--r-xl);overflow:hidden}.palette-card input{border:none;border-bottom:1px solid var(--hair-strong);border-radius:0}.palette-list{max-height:420px;overflow:auto}.palette-item{padding:12px 14px;border-top:1px solid var(--hair);cursor:pointer}.palette-item:hover,.palette-item.active{background:#1c1c1c}
+    .toasts{position:fixed;top:14px;right:14px;display:grid;gap:8px;z-index:50}.toast{min-width:280px;max-width:360px;padding:11px 12px;border-radius:12px;border:1px solid var(--hair-strong);background:var(--surface-card)}.toast.info{border-color:var(--primary)}.toast.success{border-color:#1f6d46}.toast.error{border-color:#7b2b2b}
+    @media (max-width:1200px){.app{grid-template-columns:1fr;grid-template-rows:auto auto 320px}.side{grid-row:auto}.heading{font-size:36px}.health-grid{grid-template-columns:1fr 1fr}}
+    @media (max-width:640px){.grid2,.health-grid{grid-template-columns:1fr}.heading{font-size:32px}}
+  </style>
+</head>
+<body>
+<div class="spotlight"></div>
+<div class="app">
+  <aside class="pane side">
+    <div class="row"><strong>Sidebar</strong><div class='btns'><button class="btn" id="refreshStateBtn">Refresh</button><button class="btn" id="openPalette">Cmd+K</button></div></div>
+    <h3>VPS</h3><div id="vpsList"></div>
+    <h3>Commands</h3><div id="cmdList"></div>
+    <h3>Tunnels</h3><div id="tunList"></div>
+    <button class="btn pri" id="addBtn" style="width:100%;margin-top:8px">+ Add new</button>
+  </aside>
+
+  <main class="pane main">
+    <h1 class="heading">VPS Ops Console</h1>
+    <p class="sub">Dark infra console inspired by developer tooling systems.</p>
+    <div id="detail" class="sub">Chọn VPS / Command / Tunnel ở sidebar.</div>
+
+    <div class='history'>
+      <div class='row'><strong>Run History</strong><span class='sub' style='margin:0;font-size:13px'>80 mục gần nhất</span></div>
+      <div id='historyList' class='history-list'></div>
+    </div>
+  </main>
+
+  <section class="term">
+    <div class="row" style="margin-bottom:8px"><div class="term-tabs" id="termTabs"></div><button class="btn" id="clearTerm">Clear</button></div>
+    <div id="terminal"></div>
+  </section>
+</div>
+
+<div class="modal" id="modal"><div class="panel"><div class="row"><strong id="modalTitle">Add</strong><button class="btn" id="closeModal">Đóng</button></div><div id="modalBody" style="margin-top:10px"></div></div></div>
+<div class="menu" id="ctxMenu"></div>
+<div class="palette" id="palette"><div class="palette-card"><input id="paletteInput" placeholder="Tìm command, VPS, tunnel..." /><div class="palette-list" id="paletteList"></div></div></div>
+<div class='toasts' id='toasts'></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xterm/lib/xterm.js"></script>
+<script>
+/* logic giữ nguyên */
+const state={vps:[],commands:[],tunnels:[],runtime:{processes:{},tunnels:{},commandRuns:{},commandStatus:{},tunnelStatus:{},history:[]},health:{},selected:null,selectedType:null,termTabs:['main'],activeTab:'main',paletteIndex:0};
+const term = new Terminal({theme:{background:'#000000',foreground:'#a8a8a8'},fontSize:13,convertEol:true,fontFamily:'JetBrains Mono, ui-monospace, Consolas, monospace'});term.open(document.getElementById('terminal'));
+const termBuffer={main:['VPS Ops Console ready.']};
+const ctxMenu=document.getElementById('ctxMenu');
+const toasts=document.getElementById('toasts');
+function api(url,options={}){return fetch(url,{headers:{'Content-Type':'application/json'},...options}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error||'API error');return d})}
+function showToast(message, level='info'){const el=document.createElement('div');el.className=`toast ${level}`;el.textContent=message;toasts.appendChild(el);setTimeout(()=>{el.style.opacity='0';},2600);setTimeout(()=>el.remove(),3200)}
+function log(tab,text){if(!termBuffer[tab])termBuffer[tab]=[];text.split(/\r?\n/).filter(Boolean).forEach(line=>termBuffer[tab].push(line));if(state.activeTab===tab)term.write(text)}
+function ensureTab(tab){if(!state.termTabs.includes(tab)) state.termTabs.push(tab); renderTabs();}
+function switchTab(tab){ensureTab(tab);state.activeTab=tab;renderTabs();term.clear();(termBuffer[tab]||[]).forEach(x=>term.writeln(x));loadTabLog(tab)}
+async function loadTabLog(tab){const data=await api(`/api/logs?tab=${encodeURIComponent(tab)}`);termBuffer[tab]=(data.log||'').split(/\r?\n/).filter(Boolean);if(state.activeTab===tab){term.clear();(termBuffer[tab]||[]).forEach(x=>term.writeln(x));}}
+function renderTabs(){const el=document.getElementById('termTabs');el.innerHTML='';state.termTabs.forEach(t=>{const b=document.createElement('button');b.className='tab'+(t===state.activeTab?' active':'');b.textContent=t;b.onclick=()=>switchTab(t);el.appendChild(b);});const plus=document.createElement('button');plus.className='tab';plus.textContent='+';plus.onclick=()=>switchTab('tab-'+Date.now());el.appendChild(plus)}
+function commandBadge(id){const status=state.runtime.commandStatus?.[id]||'idle';const cls=status==='running'||status==='done'?'ok':status==='failed'?'bad':status==='stopping'?'warn':'';return `<span class='badge ${cls}'>${status}</span>`}
+function tunnelBadge(id){const status=state.runtime.tunnelStatus?.[id]||'stopped';const cls=status==='running'?'ok':status==='failed'?'bad':status==='stopping'?'warn':'';return `<span class='badge ${cls}'>${status}</span>`}
+function itemStatus(type,id){if(type==='vps'){const x=state.vps.find(v=>v.id===id);return `<span class='dot ${x?.online?'g':'r'}'></span>`;} if(type==='tun'){return tunnelBadge(id);} if(type==='cmd'){return commandBadge(id);} return ''}
+function sidebarItem(type,obj){const active=state.selectedType===type&&state.selected===obj.id;const div=document.createElement('div');div.className='item'+(active?' active':'');div.innerHTML=`<div class='row'><span>${obj.name}</span>${itemStatus(type,obj.id)}</div>`;div.onclick=()=>select(type,obj.id);div.oncontextmenu=(e)=>showContext(e,type,obj);return div}
+function renderSide(){const v=document.getElementById('vpsList');v.innerHTML='';state.vps.forEach(x=>v.appendChild(sidebarItem('vps',x)));const c=document.getElementById('cmdList');c.innerHTML='';state.commands.forEach(x=>c.appendChild(sidebarItem('cmd',x)));const t=document.getElementById('tunList');t.innerHTML='';state.tunnels.forEach(x=>t.appendChild(sidebarItem('tun',x)))}
+function renderHistory(){const el=document.getElementById('historyList');const history=state.runtime.history||[];el.innerHTML=history.length?history.map(item=>`<div class='history-item'><div><strong>${item.name||item.refId}</strong> ${item.status?`<span class='badge ${item.status==='done'?'ok':item.status==='failed'?'bad':item.status==='running'?'ok':item.status==='stopping'?'warn':''}'>${item.status}</span>`:''}</div><div class='history-meta'>${item.kind||'event'} · ${item.at || ''} ${item.tab?`· ${item.tab}`:''}</div></div>`).join(''):`<div class='sub'>Chưa có lịch sử chạy.</div>`}
+function select(type,id){state.selectedType=type;state.selected=id;renderSide();renderDetail()}
+function badge(text,cls=''){return `<span class='badge ${cls}'>${text}</span>`}
+function renderDetail(){const d=document.getElementById('detail');
+ if(state.selectedType==='vps'){const x=state.vps.find(a=>a.id===state.selected);const health=state.health[x.id];const healthHtml = health ? (health.ok ? `<div class='health-grid'><div class='health-card'><div class='health-label'>Uptime</div><div class='health-value'>${health.metrics.uptime||'—'}</div></div><div class='health-card'><div class='health-label'>Load</div><div class='health-value'>${health.metrics.load||'—'}</div></div><div class='health-card'><div class='health-label'>CPU</div><div class='health-value'>${health.metrics.cpu||'—'}</div></div><div class='health-card'><div class='health-label'>Memory</div><div class='health-value'>${health.metrics.memory||'—'}</div></div><div class='health-card'><div class='health-label'>Disk</div><div class='health-value'>${health.metrics.disk||'—'}</div></div><div class='health-card'><div class='health-label'>Kernel</div><div class='health-value'>${health.metrics.kernel||'—'}</div></div></div>` : `<div class='health-error'>Health error: ${health.error||'unknown'}</div>`) : `<div class='sub' style='margin-top:8px'>Chưa load system health.</div>`;d.innerHTML=`<h2 style='margin:0 0 8px;font-size:32px;font-weight:500;letter-spacing:-.8px'>VPS: ${x.name}</h2><div class='grid2'><div><label>Host</label><input value='${x.host}' disabled></div><div><label>User</label><input value='${x.user}' disabled></div><div><label>Port</label><input value='${x.port}' disabled></div><div><label>Status</label><div class='sub' style='margin:10px 0 0'>${x.online?'online':'offline'}</div></div></div><div class='btns' style='margin-top:10px'><button class='btn pri' onclick="connectVps('${x.id}')">Connect Terminal</button><button class='btn' onclick="refreshHealth('${x.id}')">Refresh Health</button></div><h3>System Health</h3>${healthHtml}<h3>Quick Actions</h3><div class='btns'><button class='btn' onclick="runAdhoc('${x.id}','pm2 restart app')">Restart App</button><button class='btn' onclick="runAdhoc('${x.id}','docker ps')">Docker Status</button><button class='btn' onclick="runAdhoc('${x.id}','cd /var/www/app && git pull')">Pull Code</button></div>`;return}
+ if(state.selectedType==='cmd'){const x=state.commands.find(a=>a.id===state.selected);const targets=x.targets.map(t=>state.vps.find(v=>v.id===t)?.name||t).join(', ');const status=state.runtime.commandStatus?.[x.id]||'idle';d.innerHTML=`<h2 style='margin:0 0 8px;font-size:32px;font-weight:500;letter-spacing:-.8px'>Command: ${x.name}</h2><label>Command</label><textarea disabled class='mono'>${x.command}</textarea><div class='btns' style='margin-top:8px'>${badge(targets||'No targets')}${commandBadge(x.id)}</div><div class='btns' style='margin-top:10px'><button class='btn pri' onclick="runCommand('${x.id}')">Run</button><button class='btn danger' onclick="stopCommand('${x.id}')">Stop</button><button class='btn' onclick="editEntity('cmd','${x.id}')">Edit</button></div><div class='sub' style='margin-top:10px'>Status hiện tại: ${status}</div>`;return}
+ if(state.selectedType==='tun'){const x=state.tunnels.find(a=>a.id===state.selected);const status=state.runtime.tunnelStatus?.[x.id]||'stopped';const vps=state.vps.find(v=>v.id===x.target);d.innerHTML=`<h2 style='margin:0 0 8px;font-size:32px;font-weight:500;letter-spacing:-.8px'>Tunnel: ${x.name}</h2><div class='grid2'><div><label>Type</label><input value='Local (SSH -${x.type})' disabled></div><div><label>Local Port</label><input value='${x.localPort}' disabled></div><div><label>Remote</label><input value='${x.remoteHost}:${x.remotePort}' disabled></div><div><label>Target</label><input value='${vps?.name||x.target}' disabled></div></div><div class='btns' style='margin-top:10px'><button class='btn pri' onclick="startTunnel('${x.id}')">Start Tunnel</button><button class='btn warn' onclick="stopTunnel('${x.id}')">Stop</button>${tunnelBadge(x.id)}</div><div class='sub' style='margin-top:10px'>Status hiện tại: ${status}</div>`;return}
+}
+async function connectVps(id){const data=await api(`/api/vps/${id}/connect`,{method:'POST'});switchTab(data.tab);showToast('Đã mở tab kết nối VPS','success')}
+async function refreshHealth(id){ try { const data = await api(`/api/vps/${id}/health`); state.health[id] = data; renderDetail(); showToast(data.ok ? 'Đã cập nhật system health' : 'Lấy health thất bại', data.ok ? 'success' : 'error'); } catch (error) { showToast(error.message,'error'); } }
+async function runCommand(id){await api(`/api/commands/${id}/run`,{method:'POST'});const cmd=state.commands.find(x=>x.id===id);cmd.targets.forEach(t=>ensureTab(`cmd-${id}-${t}`));await loadState()}
+async function stopCommand(id){await api(`/api/commands/${id}/stop`,{method:'POST'});await loadState()}
+async function runAdhoc(vpsId,command){const temp={id:'adhoc-'+Date.now(),name:'Adhoc',command,targets:[vpsId]};await api('/api/commands',{method:'POST',body:JSON.stringify(temp)});await loadState();await runCommand(temp.id)}
+async function startTunnel(id){await api(`/api/tunnels/${id}/start`,{method:'POST'});ensureTab(`tunnel-${id}`);await loadState()}
+async function stopTunnel(id){await api(`/api/tunnels/${id}/stop`,{method:'POST'});await loadState()}
+function showModal(){const body=document.getElementById('modalBody');document.getElementById('modalTitle').textContent='Add new';body.innerHTML=`<div class='btns'><button class='btn pri' onclick="showAddVps()">Add VPS</button><button class='btn pri' onclick="showAddCmd()">Add Command</button><button class='btn pri' onclick="showAddTun()">Add Tunnel</button></div>`;document.getElementById('modal').classList.add('show')}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+function val(id){return document.getElementById(id).value.trim()}
+function showAddVps(item){item=item||{id:'',name:'',host:'',user:'root',port:22,sshKey:'',password:'',authType:'key'};document.getElementById('modalTitle').textContent=item.id?'Edit VPS':'Add VPS';document.getElementById('modalBody').innerHTML=`<label>Name</label><input id='av_name' value='${item.name}'><label>Host</label><input id='av_host' value='${item.host}'><div class='grid2'><div><label>User</label><input id='av_user' value='${item.user}'></div><div><label>Port</label><input id='av_port' value='${item.port}'></div></div><label>Auth Type</label><select id='av_auth' onchange='toggleAuthFields()'><option value='key' ${item.authType!=='password'?'selected':''}>SSH Key</option><option value='password' ${item.authType==='password'?'selected':''}>Password</option></select><div id='auth_key_fields'><label>SSH Key path (optional)</label><input id='av_key' value='${item.sshKey||''}'><div class='btns' style='margin-top:8px'><button class='btn' type='button' onclick='pickSshKey()'>Browse...</button><button class='btn' type='button' onclick='validateSshKeyPath()'>Validate</button></div><input id='av_key_file' type='file' style='display:none'></div><div id='auth_password_fields'><label>Password</label><input id='av_password' type='password' value='${item.password||''}'></div><div class='btns' style='margin-top:10px'><button class='btn pri' type='button' onclick='testSshFromForm()'>Test SSH</button><button class='btn pri' onclick="saveVps('${item.id||''}')">Save</button></div>`;document.getElementById('modal').classList.add('show');toggleAuthFields()}
+async function saveVps(id){await api('/api/vps',{method:'POST',body:JSON.stringify({id:id||undefined,name:val('av_name'),host:val('av_host'),user:val('av_user'),port:Number(val('av_port')||22),sshKey:document.getElementById('av_auth').value==='key'?val('av_key'):'',password:document.getElementById('av_auth').value==='password'?val('av_password'):'',authType:document.getElementById('av_auth').value})});closeModal();showToast('Đã lưu VPS','success');await loadState()}
+function showAddCmd(item){item=item||{id:'',name:'',command:'',targets:[]};const checks=state.vps.map(v=>`<label><input type='checkbox' value='${v.id}' ${item.targets.includes(v.id)?'checked':''}> ${v.name}</label>`).join('<br>');document.getElementById('modalTitle').textContent=item.id?'Edit Command':'Add Command';document.getElementById('modalBody').innerHTML=`<label>Name</label><input id='ac_name' value='${item.name}'><label>Command</label><textarea id='ac_cmd' class='mono'>${item.command}</textarea><label>Targets</label><div id='ac_targets'>${checks}</div><div class='btns' style='margin-top:10px'><button class='btn pri' onclick="saveCmd('${item.id||''}')">Save</button></div>`;document.getElementById('modal').classList.add('show')}
+async function saveCmd(id){const targets=[...document.querySelectorAll('#ac_targets input:checked')].map(x=>x.value);await api('/api/commands',{method:'POST',body:JSON.stringify({id:id||undefined,name:val('ac_name'),command:val('ac_cmd'),targets})});closeModal();showToast('Đã lưu command','success');await loadState()}
+function showAddTun(item){item=item||{id:'',name:'',type:'L',localPort:3000,remoteHost:'localhost',remotePort:3000,target:state.vps[0]?.id||''};document.getElementById('modalTitle').textContent=item.id?'Edit Tunnel':'Add Tunnel';document.getElementById('modalBody').innerHTML=`<label>Name</label><input id='at_name' value='${item.name}'><div class='grid2'><div><label>Local Port</label><input id='at_lp' value='${item.localPort}'></div><div><label>Remote Port</label><input id='at_rp' value='${item.remotePort}'></div></div><label>Remote Host</label><input id='at_rh' value='${item.remoteHost}'><label>Target VPS</label><select id='at_tg'>${state.vps.map(v=>`<option value='${v.id}' ${v.id===item.target?'selected':''}>${v.name}</option>`).join('')}</select><div class='btns' style='margin-top:10px'><button class='btn pri' onclick="saveTun('${item.id||''}')">Save</button></div>`;document.getElementById('modal').classList.add('show')}
+async function saveTun(id){await api('/api/tunnels',{method:'POST',body:JSON.stringify({id:id||undefined,name:val('at_name'),type:'L',localPort:Number(val('at_lp')),remoteHost:val('at_rh'),remotePort:Number(val('at_rp')),target:document.getElementById('at_tg').value})});closeModal();showToast('Đã lưu tunnel','success');await loadState()}
+function showContext(e,type,obj){e.preventDefault();ctxMenu.innerHTML='';const actions=[];if(type==='vps'){actions.push(['Edit',()=>showAddVps(obj)],['Connect',()=>connectVps(obj.id)],['Health',()=>refreshHealth(obj.id)],['Delete',()=>removeEntity('vps',obj.id)])} if(type==='cmd'){actions.push(['Run',()=>runCommand(obj.id)],['Stop',()=>stopCommand(obj.id)],['Edit',()=>showAddCmd(obj)],['Delete',()=>removeEntity('commands',obj.id)])} if(type==='tun'){actions.push(['Start',()=>startTunnel(obj.id)],['Stop',()=>stopTunnel(obj.id)],['Edit',()=>showAddTun(obj)],['Delete',()=>removeEntity('tunnels',obj.id)])} actions.forEach(([label,fn])=>{const b=document.createElement('button');b.textContent=label;b.onclick=()=>{hideContext();fn()};ctxMenu.appendChild(b)});ctxMenu.style.left=`${e.clientX}px`;ctxMenu.style.top=`${e.clientY}px`;ctxMenu.classList.add('show')}
+function hideContext(){ctxMenu.classList.remove('show')}
+async function removeEntity(type,id){if(!confirm('Delete item này?')) return; await fetch(`/api/${type}/${id}`,{method:'DELETE'});showToast('Đã xóa item','success'); await loadState()}
+function editEntity(type,id){if(type==='cmd') showAddCmd(state.commands.find(x=>x.id===id));}
+async function loadState(){const data=await api('/api/state');state.vps=data.vps;state.commands=data.commands;state.tunnels=data.tunnels;state.runtime=data.runtime;renderSide();renderDetail();renderPalette();renderHistory()}
+function connectStream(){const es=new EventSource('/api/stream');es.onmessage=(evt)=>{const msg=JSON.parse(evt.data);if(msg.type==='terminal'){ensureTab(msg.tab);if(!termBuffer[msg.tab]) termBuffer[msg.tab]=[]; msg.data.split(/\r?\n/).filter(Boolean).forEach(line=>termBuffer[msg.tab].push(line)); if(state.activeTab===msg.tab) term.write(msg.data);} if(msg.type==='status'||msg.type==='history'){loadState();} if(msg.type==='toast'){showToast(msg.message,msg.level||'info')}};}
+function paletteItems(){return [...state.commands.map(x=>({kind:'command',title:x.name,subtitle:x.command,action:()=>runCommand(x.id)})),...state.vps.map(x=>({kind:'vps',title:x.name,subtitle:`${x.user}@${x.host}:${x.port}`,action:()=>select('vps',x.id)})),...state.tunnels.map(x=>({kind:'tunnel',title:x.name,subtitle:`${x.localPort} -> ${x.remoteHost}:${x.remotePort}`,action:()=>startTunnel(x.id)}))]}
+function filteredPalette(){const q=document.getElementById('paletteInput').value.toLowerCase().trim();return paletteItems().filter(x=>!q||x.title.toLowerCase().includes(q)||x.subtitle.toLowerCase().includes(q))}
+function renderPalette(){const list=document.getElementById('paletteList');const items=filteredPalette();if(state.paletteIndex>=items.length) state.paletteIndex=0;list.innerHTML=items.map((item,i)=>`<div class='palette-item ${i===state.paletteIndex?'active':''}' data-idx='${i}'><strong>${item.title}</strong><div class='sub' style='margin:4px 0 0;font-size:13px'>${item.kind} · ${item.subtitle}</div></div>`).join('');[...list.querySelectorAll('.palette-item')].forEach(el=>el.onclick=()=>runPalette(Number(el.dataset.idx)))}
+function openPalette(){document.getElementById('palette').classList.add('show');document.getElementById('paletteInput').value='';state.paletteIndex=0;renderPalette();setTimeout(()=>document.getElementById('paletteInput').focus(),0)}
+function closePalette(){document.getElementById('palette').classList.remove('show')}
+function runPalette(index){const items=filteredPalette();const item=items[index];if(!item) return;closePalette();item.action()}
+function pickSshKey(){ const fileInput=document.getElementById('av_key_file'); if(!fileInput) return; fileInput.onchange=()=>{ const f=fileInput.files && fileInput.files[0]; if(!f) return; const pathValue = f.path || ''; if(pathValue){ document.getElementById('av_key').value = pathValue; showToast('Đã chọn SSH key','success'); } else { showToast('Trình duyệt không trả absolute path. Hãy dán path thủ công.','error'); } }; fileInput.click(); }
+async function validateSshKeyPath(){ if(document.getElementById('av_auth')?.value==='password'){ showToast('Mode password không cần validate key','info'); return; } const keyPath = val('av_key'); if(!keyPath){ showToast('Chưa nhập SSH key path','error'); return; } try{ const res = await api('/api/ssh/validate-key',{method:'POST',body:JSON.stringify({keyPath})}); showToast(res.exists ? 'SSH key tồn tại' : 'Không tìm thấy SSH key', res.exists ? 'success' : 'error'); }catch(error){ showToast(error.message,'error'); }}
+async function testSshFromForm(){ const host = val('av_host'); const user = val('av_user'); const port = Number(val('av_port')||22); const authType = document.getElementById('av_auth')?.value || 'key'; const sshKey = authType==='key' ? val('av_key') : ''; const password = authType==='password' ? val('av_password') : ''; if(!host || !user){ showToast('Thiếu host/user để test SSH','error'); return; } try{ const res = await api('/api/ssh/test',{method:'POST',body:JSON.stringify({host,user,port,sshKey,authType,password})}); showToast(res.ok ? 'SSH test thành công' : `SSH test lỗi (${res.code ?? 'x'})`, res.ok ? 'success' : 'error'); }catch(error){ showToast(error.message,'error'); }}
+function toggleAuthFields(){ const authType = document.getElementById('av_auth')?.value || 'key'; const keyBox = document.getElementById('auth_key_fields'); const passBox = document.getElementById('auth_password_fields'); if(keyBox) keyBox.style.display = authType==='key' ? 'block' : 'none'; if(passBox) passBox.style.display = authType==='password' ? 'block' : 'none'; }
+window.connectVps=connectVps;window.refreshHealth=refreshHealth;window.runCommand=runCommand;window.stopCommand=stopCommand;window.startTunnel=startTunnel;window.stopTunnel=stopTunnel;window.runAdhoc=runAdhoc;window.showAddVps=showAddVps;window.showAddCmd=showAddCmd;window.showAddTun=showAddTun;window.saveVps=saveVps;window.saveCmd=saveCmd;window.saveTun=saveTun;window.editEntity=editEntity;
+document.getElementById('addBtn').onclick=showModal;document.getElementById('closeModal').onclick=closeModal;document.getElementById('clearTerm').onclick=()=>{termBuffer[state.activeTab]=[];term.clear()};document.getElementById('openPalette').onclick=openPalette;document.getElementById('refreshStateBtn').onclick=()=>loadState();document.getElementById('paletteInput').addEventListener('input',()=>{state.paletteIndex=0;renderPalette()});document.addEventListener('click',e=>{if(!ctxMenu.contains(e.target)) hideContext()});
+document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openPalette()} if(e.key==='Escape'){closePalette();closeModal();hideContext()} if(document.getElementById('palette').classList.contains('show')){const items=filteredPalette(); if(e.key==='ArrowDown'){e.preventDefault();state.paletteIndex=Math.min(items.length-1,state.paletteIndex+1);renderPalette()} if(e.key==='ArrowUp'){e.preventDefault();state.paletteIndex=Math.max(0,state.paletteIndex-1);renderPalette()} if(e.key==='Enter'){e.preventDefault();runPalette(state.paletteIndex)}}});
+renderTabs();switchTab('main');connectStream();loadState();
+</script>
+</body>
+</html>
