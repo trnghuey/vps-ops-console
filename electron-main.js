@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const http = require('http');
 const net = require('net');
 const path = require('path');
@@ -59,6 +59,20 @@ function createWindow() {
   mainWindow.loadURL(`http://127.0.0.1:${appPort}`);
 }
 
+
+ipcMain.handle('dialog:pick-ssh-key', async () => {
+  if (!mainWindow) return { canceled: true };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Ch?n SSH private key',
+    properties: ['openFile'],
+    filters: [
+      { name: 'SSH key', extensions: ['pem', 'ppk', 'key'] },
+      { name: 'All files', extensions: ['*'] }
+    ]
+  });
+  if (result.canceled || !result.filePaths?.length) return { canceled: true };
+  return { canceled: false, path: result.filePaths[0] };
+});
 function readUpdateConfig() {
   const candidates = [
     process.env.VPS_OPS_UPDATE_URL,
@@ -112,11 +126,11 @@ function setupAutoUpdater() {
   autoUpdater.setFeedURL(feed);
 
   autoUpdater.on('error', (error) => {
-    dialog.showMessageBox({ type: 'error', title: 'Update Error', message: `Không thể check update: ${error.message}` }).catch(() => {});
+    dialog.showMessageBox({ type: 'error', title: 'Update Error', message: `Kh�ng th? check update: ${error.message}` }).catch(() => {});
   });
 
   autoUpdater.on('update-available', async (info) => {
-    const result = await dialog.showMessageBox({ type: 'info', buttons: ['Tải update', 'Bỏ qua'], defaultId: 0, cancelId: 1, title: 'Có bản cập nhật mới', message: `Đã có bản mới ${info.version}. Bạn muốn tải ngay không?` });
+    const result = await dialog.showMessageBox({ type: 'info', buttons: ['T?i update', 'B? qua'], defaultId: 0, cancelId: 1, title: 'C� b?n c?p nh?t m?i', message: `�� c� b?n m?i ${info.version}. B?n mu?n t?i ngay kh�ng?` });
     if (result.response === 0) autoUpdater.downloadUpdate();
   });
 
@@ -126,7 +140,7 @@ function setupAutoUpdater() {
 
   autoUpdater.on('update-downloaded', async () => {
     if (mainWindow) mainWindow.setProgressBar(-1);
-    const result = await dialog.showMessageBox({ type: 'info', buttons: ['Cài và khởi động lại', 'Để sau'], defaultId: 0, cancelId: 1, title: 'Update đã tải xong', message: 'Bản cập nhật đã tải xong. Cài ngay bây giờ?' });
+    const result = await dialog.showMessageBox({ type: 'info', buttons: ['C�i v� kh?i d?ng l?i', '�? sau'], defaultId: 0, cancelId: 1, title: 'Update d� t?i xong', message: 'B?n c?p nh?t d� t?i xong. C�i ngay b�y gi??' });
     if (result.response === 0) autoUpdater.quitAndInstall();
   });
 
@@ -163,3 +177,4 @@ app.on('window-all-closed', function () {
 app.on('before-quit', () => {
   try { serverInstance?.close(); } catch {}
 });
+

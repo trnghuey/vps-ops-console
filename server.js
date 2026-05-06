@@ -343,10 +343,14 @@ function execRemoteCommandCli(vps, command) {
 }
 
 async function execRemoteCommandAny(vps, command) {
-  if (vps.authType === 'password') {
-    return execRemoteCommandSsh2(vps, command);
+  const ssh2Result = await execRemoteCommandSsh2(vps, command);
+  if (ssh2Result.ok) return ssh2Result;
+  if (vps.authType === 'password') return ssh2Result;
+  const cliResult = await execRemoteCommandCli(vps, command);
+  if (!cliResult.ok && /bad permissions|UNPROTECTED PRIVATE KEY FILE/i.test(String(cliResult.stderr || cliResult.error || ''))) {
+    return { ...cliResult, error: `${cliResult.error || cliResult.stderr || 'SSH failed'}. Hãy bấm "Fix Key Perm" trong form VPS rồi test lại.` };
   }
-  return execRemoteCommandCli(vps, command);
+  return cliResult;
 }
 
 function parseHealthOutput(text) {
@@ -612,11 +616,33 @@ function testSshConnection({ host, user, port, sshKey }) {
 
 async function testSshConnectionAny({ host, user, port, sshKey, authType, password }) {
   const vps = normalizeVpsAuth({ host, user, port, sshKey, authType, password });
-  if (vps.authType === 'password') {
-    const result = await runRemoteCommandSsh2(vps, 'echo ok', 'test-ssh', 'test-ssh', 'test-ssh');
-    return { ok: !!result.ok, code: result.code, error: result.error };
+  const result = await execRemoteCommandSsh2(vps, 'echo ok');
+  if (result.ok) return { ok: true, code: 0 };
+  if (vps.authType === 'password') return { ok: false, code: result.code, error: result.error };
+  const cliResult = await testSshConnection({ host, user, port, sshKey });
+  if (!cliResult.ok && /bad permissions|UNPROTECTED PRIVATE KEY FILE/i.test(String(cliResult.stderr || cliResult.error || ''))) {
+    return { ...cliResult, error: `${cliResult.error || cliResult.stderr || 'SSH failed'}. File key đang quá mở quyền trên Windows.` };
   }
-  return testSshConnection({ host, user, port, sshKey });
+  return cliResult;
+}
+
+async function repairWindowsKeyPermissions(keyPath) {
+  if (!keyPath) return { ok: false, error: 'Thiếu keyPath' };
+  if (process.platform !== 'win32') return { ok: false, error: 'Chỉ hỗ trợ trên Windows' };
+  if (!fs.existsSync(keyPath)) return { ok: false, error: 'Key file không tồn tại' };
+  const run = (args) => new Promise((resolve) => {
+    const child = spawn('icacls', args, { windowsHide: true });
+    let stderr = '';
+    child.stderr?.on('data', (chunk) => { stderr += String(chunk); });
+    child.on('error', (error) => resolve({ ok: false, error: error.message }));
+    child.on('exit', (code) => resolve({ ok: code === 0, code, stderr }));
+  });
+  const r1 = await run([keyPath, '/inheritance:r']);
+  if (!r1.ok) return { ok: false, error: r1.stderr || 'Không thể tắt inheritance' };
+  const r2 = await run([keyPath, '/grant:r', `${process.env.USERNAME}:R`]);
+  if (!r2.ok) return { ok: false, error: r2.stderr || 'Không thể grant quyền cho user hiện tại' };
+  const r3 = await run([keyPath, '/remove:g', 'Users', 'Authenticated Users', 'Everyone']);
+  return r3.ok ? { ok: true } : { ok: false, error: r3.stderr || 'Không thể remove group permissions' };
 }
 
 function serveStatic(req, res) {
@@ -674,6 +700,12 @@ function createAppServer() {
       if (req.method === 'POST' && url.pathname === '/api/ssh/test') {
         const body = await parseBody(req);
         sendJson(res, 200, await testSshConnectionAny(body));
+        return;
+      }
+
+      if (req.method === 'POST' && url.pathname === '/api/ssh/fix-key-permissions') {
+        const body = await parseBody(req);
+        sendJson(res, 200, await repairWindowsKeyPermissions(body.keyPath));
         return;
       }
 

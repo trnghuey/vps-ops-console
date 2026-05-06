@@ -1,6 +1,6 @@
 {
     "name":  "vps-ops-console-desktop",
-    "version":  "1.0.9",
+    "version":  "1.0.10",
     "private":  true,
     "description":  "VPS Ops Console desktop app",
     "author":  "OpenAI Codex",
@@ -22,6 +22,7 @@
                                   },
                   "files":  [
                                 "electron-main.js",
+                                "preload.js",
                                 "server.js",
                                 "index.html",
                                 "update-config.json",
